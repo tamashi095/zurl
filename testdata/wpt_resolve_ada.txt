@@ -1,0 +1,891 @@
+http://example.org/	http://example.org
+http://user:pass@foo:21/bar;par?b#c	http://foo:21
+https://test@test/	https://test
+https://test/	https://test
+non-special://test@test/x	null
+non-special://test/x	null
+http://example.org/foo/foo.com	http://example.org
+http://example.org/foo/:foo.com	http://example.org
+http://example.org/foo/foo.com	http://example.org
+a: foo.com	null
+http://f:21/%20b%20?%20d%20#%20e	http://f:21
+lolscheme:x x#x%20x	null
+http://f/c	http://f
+http://f:0/c	http://f:0
+http://f:0/c	http://f:0
+http://f/c	http://f
+INVALID
+INVALID
+http://f/c	http://f
+INVALID
+INVALID
+INVALID
+INVALID
+http://example.org/foo/bar	http://example.org
+http://example.org/foo/bar	http://example.org
+http://example.org/foo/:foo.com/	http://example.org
+http://example.org/foo/:foo.com/	http://example.org
+http://example.org/foo/:	http://example.org
+http://example.org/foo/:a	http://example.org
+http://example.org/foo/:/	http://example.org
+http://example.org/foo/:/	http://example.org
+http://example.org/foo/:#	http://example.org
+http://example.org/foo/bar#	http://example.org
+http://example.org/foo/bar#/	http://example.org
+http://example.org/foo/bar#\	http://example.org
+http://example.org/foo/bar#;?	http://example.org
+http://example.org/foo/bar?	http://example.org
+http://example.org/	http://example.org
+http://example.org/foo/:23	http://example.org
+http://example.org/:23	http://example.org
+http://example.org/x	http://example.org
+http://x/hello	http://x
+http://example.org/foo/::	http://example.org
+http://example.org/foo/::23	http://example.org
+foo://	null
+http://a:b@c:29/d	http://c:29
+http://%C3%A9@xn--9ca/	http://xn--9ca
+http://%C3%A9@example.com/	http://example.com
+http://example.org/foo/:@c:29	http://example.org
+http://&a:foo(b%5Dc@d:2/	http://d:2
+http://:%3A%40c@d:2/	http://d:2
+http://foo.com:b@d/	http://d
+http://foo.com//@	http://foo.com
+http://foo.com/	http://foo.com
+http://a/b:c/d@foo.com/	http://a
+http://a:b@c/	http://c
+ws://a@b/c	ws://b
+foo:/	null
+foo:/bar.com/	null
+foo://///////	null
+foo://///////bar.com/	null
+foo:////://///	null
+c:/foo	null
+http://foo/bar	http://foo
+http://foo/path;a??e#f#g	http://foo
+http://foo/abcd?efgh?ijkl	http://foo
+http://foo/abcd#foo?bar	http://foo
+http://example.org/foo/[61:24:74]:98	http://example.org
+http://example.org/foo/[61:27]/:foo	http://example.org
+INVALID
+INVALID
+INVALID
+INVALID
+http://[2001::1]/	http://[2001::1]
+http://[::7f00:1]/	http://[::7f00:1]
+INVALID
+http://[::d01:4403]/	http://[::d01:4403]
+http://[2001::1]/	http://[2001::1]
+http://example.org/example.com/	http://example.org
+http://example.com/	http://example.com
+ftp://example.com/	ftp://example.com
+https://example.com/	https://example.com
+madeupscheme:/example.com/	null
+file:///example.com/	null
+INVALID
+INVALID
+INVALID
+INVALID
+ftps:/example.com/	null
+gopher:/example.com/	null
+ws://example.com/	ws://example.com
+wss://example.com/	wss://example.com
+data:/example.com/	null
+javascript:/example.com/	null
+mailto:/example.com/	null
+http://example.org/foo/example.com/	http://example.org
+ftp://example.com/	ftp://example.com
+https://example.com/	https://example.com
+madeupscheme:example.com/	null
+ftps:example.com/	null
+gopher:example.com/	null
+ws://example.com/	ws://example.com
+wss://example.com/	wss://example.com
+data:example.com/	null
+javascript:example.com/	null
+mailto:example.com/	null
+http://example.org/a/b/c	http://example.org
+http://example.org/a/%20/c	http://example.org
+http://example.org/a%2fc	http://example.org
+http://example.org/a/%2f/c	http://example.org
+http://example.org/foo/bar#%CE%B2	http://example.org
+data:text/html,test#test	null
+tel:1234567890	null
+ssh://example.com/foo/bar.git	null
+file:///c:/foo/bar.html	null
+file:///c:////foo/bar.html	null
+file:///C:/foo/bar	null
+file:///C:/foo/bar	null
+file:///C:/foo/bar	null
+file://server/file	null
+file://server/file	null
+file://server/file	null
+file:///foo/bar.txt	null
+file:///home/me	null
+file:///	null
+file:///	null
+file:///test	null
+file://test/	null
+file:///	null
+file:///	null
+file:///test	null
+file:///tmp/mock/test	null
+file:///tmp/mock/test	null
+file:///w|m	null
+file:///w||m	null
+file:///w:/m	null
+file:///C:/m/	null
+file:///C||/m/	null
+http://example.com/foo	http://example.com
+http://example.com/.foo	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/..bar	http://example.com
+http://example.com/foo/ton	http://example.com
+http://example.com/a	http://example.com
+http://example.com/	http://example.com
+http://example.com/ton	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/%2e%2	http://example.com
+http://example.com/%2e.bar	http://example.com
+http://example.com//	http://example.com
+http://example.com/foo/	http://example.com
+http://example.com/foo/bar/	http://example.com
+http://example.com/foo	http://example.com
+http://example.com/%20foo	http://example.com
+http://example.com/foo%	http://example.com
+http://example.com/foo%2	http://example.com
+http://example.com/foo%2zbar	http://example.com
+http://example.com/foo%2%C3%82%C2%A9zbar	http://example.com
+http://example.com/foo%41%7a	http://example.com
+http://example.com/foo%C2%91%91	http://example.com
+http://example.com/foo%00%51	http://example.com
+http://example.com/(%28:%3A%29)	http://example.com
+http://example.com/%3A%3a%3C%3c	http://example.com
+http://example.com/foobar	http://example.com
+http://example.com//foo//bar	http://example.com
+http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd	http://example.com
+http://example.com/@asdf%40	http://example.com
+http://example.com/%E4%BD%A0%E5%A5%BD%E4%BD%A0%E5%A5%BD	http://example.com
+http://example.com/%E2%80%A5/foo	http://example.com
+http://example.com/%EF%BB%BF/foo	http://example.com
+http://example.com/%E2%80%AE/foo/%E2%80%AD/bar	http://example.com
+http://www.google.com/foo?bar=baz#	http://www.google.com
+http://www.google.com/foo?bar=baz#%20%C2%BB	http://www.google.com
+data:test#%20%C2%BB	null
+http://www.google.com/	http://www.google.com
+http://192.168.0.1/	http://192.168.0.1
+http://www/foo%2Ehtml	http://www
+http://www/foo/html	http://www
+INVALID
+http://%25DOMAIN:foobar@foodomain.com/	http://foodomain.com
+http://www.google.com/foo	http://www.google.com
+http://foo/	http://foo
+http://foo:81/	http://foo:81
+httpa://foo:80/	null
+INVALID
+https://foo/	https://foo
+https://foo:80/	https://foo:80
+ftp://foo/	ftp://foo
+ftp://foo:80/	ftp://foo:80
+gopher://foo:70/	null
+gopher://foo:443/	null
+ws://foo/	ws://foo
+ws://foo:81/	ws://foo:81
+ws://foo:443/	ws://foo:443
+ws://foo:815/	ws://foo:815
+wss://foo:80/	wss://foo:80
+wss://foo:81/	wss://foo:81
+wss://foo/	wss://foo
+wss://foo:815/	wss://foo:815
+http://example.com/	http://example.com
+ftp://example.com/	ftp://example.com
+https://example.com/	https://example.com
+madeupscheme:/example.com/	null
+file:///example.com/	null
+ftps:/example.com/	null
+gopher:/example.com/	null
+ws://example.com/	ws://example.com
+wss://example.com/	wss://example.com
+data:/example.com/	null
+javascript:/example.com/	null
+mailto:/example.com/	null
+http://example.com/	http://example.com
+ftp://example.com/	ftp://example.com
+https://example.com/	https://example.com
+madeupscheme:example.com/	null
+ftps:example.com/	null
+gopher:example.com/	null
+ws://example.com/	ws://example.com
+wss://example.com/	wss://example.com
+data:example.com/	null
+javascript:example.com/	null
+mailto:example.com/	null
+https://example.com/aaa/?query	https://example.com
+http://www.example.com/	http://www.example.com
+http://www.example.com/	http://www.example.com
+http://www.example.com/	http://www.example.com
+http://a:b@www.example.com/	http://www.example.com
+http://a:b@www.example.com/	http://www.example.com
+http://a:b@www.example.com/	http://www.example.com
+http://pple.com/	http://pple.com
+http://:b@www.example.com/	http://www.example.com
+http://:b@www.example.com/	http://www.example.com
+http://:b@www.example.com/	http://www.example.com
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://a@www.example.com/	http://www.example.com
+http://a@www.example.com/	http://www.example.com
+http://a@www.example.com/	http://www.example.com
+http://www.@pple.com/	http://pple.com
+INVALID
+INVALID
+INVALID
+http://www.example.com/	http://www.example.com
+http://www.example.com/	http://www.example.com
+http://www.example.com/test.txt	http://www.example.com
+http://www.example.com/	http://www.example.com
+http://www.example.com/	http://www.example.com
+http://www.example.com/test.txt	http://www.example.com
+http://www.example.com/test.txt	http://www.example.com
+http://www.example.com/test.txt	http://www.example.com
+http://www.example.com/aaa/test.txt	http://www.example.com
+http://www.example.com/test.txt	http://www.example.com
+http://www.example.com/%E4%B8%AD/test.txt	http://www.example.com
+http://www.example2.com/	http://www.example2.com
+http://www.example2.com/	http://www.example2.com
+file:///...	null
+file:///	null
+file:///a	null
+file:///	null
+file:///	null
+http://example.com/	http://example.com
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://googoo.com/	http://googoo.com
+http://example.com/	http://example.com
+non-special:opaque	null
+non-special:opaque %20?hi	null
+non-special:opaque %20#hi	null
+non-special:opaque  x?hi	null
+non-special:opaque  x#hi	null
+non-special:opaque  %20#hi	null
+non-special:opaque  %20#hi	null
+non-special:opaque  %20#hi	null
+http://www.foo.bar.com/	http://www.foo.bar.com
+INVALID
+INVALID
+INVALID
+INVALID
+https://x/%EF%BF%BD?%EF%BF%BD#%EF%BF%BD	https://x
+http://a.b.c.xn--pokxncvks/	http://a.b.c.xn--pokxncvks
+http://10.0.0.xn--pokxncvks/	http://10.0.0.xn--pokxncvks
+http://a.b.c.xn--pokxncvks/	http://a.b.c.xn--pokxncvks
+http://a.b.c.xn--pokxncvks/	http://a.b.c.xn--pokxncvks
+http://10.0.0.xn--pokxncvks/	http://10.0.0.xn--pokxncvks
+http://10.0.0.xn--pokxncvks/	http://10.0.0.xn--pokxncvks
+http://go.com/	http://go.com
+INVALID
+INVALID
+INVALID
+INVALID
+http://xn--6qqa088eba/	http://xn--6qqa088eba
+https://xn--fa-hia.example/	https://xn--fa-hia.example
+sc://fa%C3%9F.ExAmPlE/	null
+INVALID
+INVALID
+INVALID
+http://192.168.0.1/	http://192.168.0.1
+http://192.168.0.1/	http://192.168.0.1
+INVALID
+INVALID
+INVALID
+INVALID
+http://192.168.0.1/	http://192.168.0.1
+http://./	http://.
+http://../	http://..
+h://.	null
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://foo:%F0%9F%92%A9@example.com/bar	http://example.com
+http://%F0%9F%98%80x@host/	http://host
+http://a:%F0%9F%98%80x@host/	http://host
+http://%F0%9F%98%80@host/	http://host
+https://localhost/?q=%F0%9F%94%A5	https://localhost
+https://localhost/#%F0%9F%94%A5	https://localhost
+test:test#	null
+mailto:x@x.com#x	null
+data:,#x	null
+about:blank#x	null
+about:blank#x:y	null
+test:test?test#	null
+https://%40test%40test@example:800/	https://example:800
+https://%40%40@example/	https://example
+http://%60%7B%7D:%60%7B%7D@h/%60%7B%7D?`{}	http://h
+http://host/?%27	http://host
+notspecial://host/?'	null
+http://user@example.org/some/path	http://example.org
+http://user:pass@example.org:21/smth	http://example.org:21
+http://user:pass@example.org:21/some/path	http://example.org:21
+INVALID
+INVALID
+sc:/pa/i	null
+sc://ho/i	null
+sc:///pa/i	null
+INVALID
+INVALID
+sc:/i	null
+sc://ho/i	null
+sc:///i	null
+INVALID
+INVALID
+sc:/i	null
+sc://ho/i	null
+sc:///i	null
+INVALID
+INVALID
+sc:/pa/pa?i	null
+sc://ho/pa?i	null
+sc:///pa/pa?i	null
+sc:sd#i	null
+sc:sd/sd#i	null
+sc:/pa/pa#i	null
+sc://ho/pa#i	null
+sc:///pa/pa#i	null
+about:/	null
+data:/	null
+javascript:/	null
+mailto:/	null
+sc://%C3%B1.test/	null
+sc://%/	null
+INVALID
+INVALID
+INVALID
+INVALID
+sc://%C3%B1/x	null
+sc:\../	null
+sc::a@example.net	null
+wow:%NBD	null
+wow:%1G	null
+wow:%EF%BF%BF	null
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+foo://host/	null
+foo://host/	null
+foo://host/	null
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://host/	http://host
+http://host/	http://host
+http://host/	http://host
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://!"$&'()*+,-.;=_`{}~/	http://!"$&'()*+,-.;=_`{}~
+sc://%01%02%03%04%05%06%07%08%0B%0C%0E%0F%10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F%7F!"$%&'()*+,-.;=_`{}~/	null
+INVALID
+INVALID
+INVALID
+INVALID
+ftp://xn--n3h/	ftp://xn--n3h
+https://xn--n3h/	https://xn--n3h
+http://127.0.0.1:10100/relative_import.html	http://127.0.0.1:10100
+http://facebook.com/?foo=%7B%22abc%22	http://facebook.com
+https://localhost:3000/jqueryui@1.2.3	https://localhost:3000
+http://host:9000/path?query#frag	http://host:9000
+http://example.org/foo/bar?a=b&c=d	http://example.org
+http://example.org/foo/bar??a=b&c=d	http://example.org
+http://example.org/foo/bar	http://example.org
+INVALID
+sc:	null
+http://foo.bar/baz?qux#foo%08bar	http://foo.bar
+http://foo.bar/baz?qux#foo%22bar	http://foo.bar
+http://foo.bar/baz?qux#foo%3Cbar	http://foo.bar
+http://foo.bar/baz?qux#foo%3Ebar	http://foo.bar
+http://foo.bar/baz?qux#foo%60bar	http://foo.bar
+http://1.2.3.4/	http://1.2.3.4
+http://1.2.3.4/	http://1.2.3.4
+http://192.168.1.1/	http://192.168.1.1
+http://192.168.1.1/	http://192.168.1.1
+http://192.168.257.com/	http://192.168.257.com
+http://0.0.1.0/	http://0.0.1.0
+http://256.com/	http://256.com
+http://59.154.201.255/	http://59.154.201.255
+http://59.154.201.255/	http://59.154.201.255
+http://999999999.com/	http://999999999.com
+INVALID
+http://10000000000.com/	http://10000000000.com
+http://255.255.255.255/	http://255.255.255.255
+INVALID
+INVALID
+INVALID
+http://255.255.255.255/	http://255.255.255.255
+INVALID
+INVALID
+https://0.0.0.0/	https://0.0.0.0
+https://0.0.0.0/	https://0.0.0.0
+https://0.0.0.0/	https://0.0.0.0
+https://127.0.0.1/	https://127.0.0.1
+INVALID
+INVALID
+file:///C%3A/	null
+file:///C%7C/	null
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+asdf://%43%7C/	null
+file:///C:/Users/Domenic/Dropbox/GitHub/tmpvar/jsdom/test/level2/html/files/pix/submit.gif	null
+file:///C:/	null
+file:///	null
+file:///C:/	null
+file://h/C:/	null
+file://h/	null
+file:///d:	null
+file:///d:/	null
+file:///	null
+file:///	null
+file:///test?test	null
+file:///test?test	null
+file:///test?x	null
+file:///test?x	null
+file:///test?test#x	null
+file:///test?test#x	null
+file:////	null
+file:////	null
+file:////?fox	null
+file:////#guppy	null
+file://spider///	null
+file:////	null
+file:///localhost//cat	null
+file:////localhost//cat	null
+file://///	null
+file://///mouse	null
+file:///pig	null
+file:////pig	null
+file:////pig	null
+file://lion//localhost//pig	null
+file:///	null
+file://tea/rooibos	null
+file://tea/?chai	null
+file://host/C:	null
+file://host/C:	null
+file://host/C:#	null
+file://host/C:?	null
+file://host/C:/	null
+file://host/C:/	null
+file://host/C:/	null
+file://host/dir/C	null
+file://host/dir/C|a	null
+file:///c:/foo/bar	null
+file:///c:/foo/bar	null
+file:///c:/foo/bar	null
+file://host/c:/foo/bar	null
+abc://x/y/z/	null
+file://x/C:/	null
+file://example.net/C:/	null
+file://1.2.3.4/C:/	null
+file://[1::8]/C:/	null
+file://host/C:/	null
+file://host/C:/	null
+file://host/C:/	null
+file://host/C:/	null
+file:///C:/	null
+file:///C:/	null
+file:///C:/	null
+file:///C:/	null
+file:///C:/	null
+file:///C:/	null
+file:///	null
+file:///?q=v	null
+file:///#frag	null
+file:///Y:	null
+file:///Y:/	null
+file:///Y	null
+file:///Y:	null
+INVALID
+file:///y:	null
+file:///y:/	null
+file:///y	null
+file:///y:	null
+INVALID
+file://///foo	null
+file://////foo	null
+file:////foo	null
+file:///one/two	null
+file:////one/two	null
+file://one/two	null
+file:///one/two	null
+file:////one/two	null
+file:////	null
+file:////p	null
+file:////p	null
+http://[1::]/	http://[1::]
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+sc://%C3%B1	null
+sc://%C3%B1?x	null
+sc://%C3%B1#x	null
+sc://%C3%B1#x	null
+sc://%C3%B1?x	null
+sc://?	null
+sc://#	null
+sc:///	null
+sc:////	null
+sc:////x/	null
+tftp://foobar.com/someconfig;mode=netascii	null
+telnet://user:pass@foobar.com:23/	null
+ut2004://10.10.10.10:7777/Index.ut2	null
+redis://foo:bar@somehost:6379/0?baz=bam&qux=baz	null
+rsync://foo@host:911/sup	null
+git://github.com/foo/bar.git	null
+irc://myserver.com:6999/channel?passwd	null
+dns://fw.example.org:9999/foo.bar.org?type=TXT	null
+ldap://localhost:389/ou=People,o=JNDITutorial	null
+git+https://github.com/foo/bar	null
+urn:ietf:rfc:2648	null
+tag:joe@example.org,2001:foo/bar	null
+non-spec:/.//	null
+non-spec:/.//	null
+non-spec:/.//	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//path	null
+non-spec:/.//p	null
+non-spec:/.//path	null
+non-spec:/path	null
+non-special://%E2%80%A0/	null
+non-special://H%4fSt/path	null
+non-special://[1:2:0:0:5::]/	null
+non-special://[1:2::3]/	null
+non-special://[1:2::3]:80/	null
+INVALID
+blob:https://example.com:443/	https://example.com
+blob:http://example.org:88/	http://example.org:88
+blob:d3958f5c-0777-0845-9dcf-2cb28783acaf	null
+blob:	null
+blob:blob:	null
+blob:blob:https://example.org/	null
+blob:about:blank	null
+blob:file://host/path	null
+blob:ftp://host/path	null
+blob:ws://example.org/	null
+blob:wss://example.org/	null
+blob:http%3a//example.org/	null
+http://0x7f.0.0.0x7g/	http://0x7f.0.0.0x7g
+http://0x7f.0.0.0x7g/	http://0x7f.0.0.0x7g
+INVALID
+http://[0:1:0:1:0:1:0:1]/	http://[0:1:0:1:0:1:0:1]
+http://[1:0:1:0:1:0:1:0]/	http://[1:0:1:0:1:0:1:0]
+http://example.org/test?%22	http://example.org
+http://example.org/test?#	http://example.org
+http://example.org/test?%3C	http://example.org
+http://example.org/test?%3E	http://example.org
+http://example.org/test?%E2%8C%A3	http://example.org
+http://example.org/test?%23%23	http://example.org
+http://example.org/test?%GH	http://example.org
+http://example.org/test?a#%EF	http://example.org
+http://example.org/test?a#%GH	http://example.org
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+a:/test-a-colon-slash.html	null
+a:///test-a-colon-slash-slash.html	null
+a:/test-a-colon-slash-b.html	null
+a://b/test-a-colon-slash-slash-b.html	null
+http://example.org/test?a#b%00c	http://example.org
+non-spec://example.org/test?a#b%00c	null
+non-spec:/test?a#b%00c	null
+file:///some/dir/10.0.0.7:8080/foo.html	null
+file:///some/dir/a!@$*=/foo.html	null
+a1234567890-+.:foo/bar	null
+file://ab/p	null
+file://ab/p	null
+file:///usr/bin	null
+INVALID
+INVALID
+file://xn--/p	null
+https://example.org/#link	https://example.org
+non-special:cannot-be-a-base-url-%00%01%1F%1E~%7F%C2%80	null
+non-special:cannot-be-a-base-url-!"$%&'()*+,-.;<=>@[\]^_`{|}~@/	null
+https://www.example.com/path%7B%7Fpath.html?query%27%7F=query#fragment%3C%7Ffragment	https://www.example.com
+https://user:pass%5B%7F@foo/bar	https://foo
+foo://%20!%22$%&'()*+,-.%3B%3C%3D%3E%40%5B%5C%5D%5E_%60%7B%7C%7D~@host/	null
+wss://%20!%22$%&'()*+,-.%3B%3C%3D%3E%40%5B%5D%5E_%60%7B%7C%7D~@host/	wss://host
+foo://joe:%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5C%5D%5E_%60%7B%7C%7D~@host/	null
+wss://joe:%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5D%5E_%60%7B%7C%7D~@host/	wss://host
+foo://!"$%&'()*+,-.;=_`{}~/	null
+wss://!"$&'()*+,-.;=_`{}~/	wss://!"$&'()*+,-.;=_`{}~
+foo://host/%20!%22$%&'()*+,-./:;%3C=%3E@[\]%5E_%60%7B|%7D~	null
+wss://host/%20!%22$%&'()*+,-./:;%3C=%3E@[/]%5E_%60%7B|%7D~	wss://host
+foo://host/dir/?%20!%22$%&'()*+,-./:;%3C=%3E?@[\]^_`{|}~	null
+wss://host/dir/?%20!%22$%&%27()*+,-./:;%3C=%3E?@[\]^_`{|}~	wss://host
+foo://host/dir/#%20!%22#$%&'()*+,-./:;%3C=%3E?@[\]^_%60{|}~	null
+wss://host/dir/#%20!%22#$%&'()*+,-./:;%3C=%3E?@[\]^_%60{|}~	wss://host
+abc:rootless	null
+abc:rootless	null
+abc:rootless	null
+abc:/rooted	null
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+http://foo.09../	http://foo.09..
+INVALID
+INVALID
+INVALID
+INVALID
+INVALID
+https://x/%00y	https://x
+https://x/?%00y	https://x
+https://x/?#%00y	https://x
+INVALID
+https://x/%EF%BF%BFy	https://x
+https://x/?%EF%BF%BFy	https://x
+https://x/?#%EF%BF%BFy	https://x
+non-special:%00y	null
+non-special:x/%00y	null
+non-special:x/?%00y	null
+non-special:x/?#%00y	null
+non-special:%EF%BF%BFy	null
+non-special:x/%EF%BF%BFy	null
+non-special:x/?%EF%BF%BFy	null
+non-special:x/?#%EF%BF%BFy	null
+INVALID
+https://example.com/%22quoted%22	https://example.com
+https://ab/	https://ab
+INVALID
+INVALID
+https://xn--/	https://xn--
+data://example.com:8080/pathname?search#hash	null
+data:///test	null
+data://test/b	null
+INVALID
+INVALID
+INVALID
+javascript://example.com:8080/pathname?search#hash	null
+javascript:///test	null
+javascript://test/b	null
+INVALID
+INVALID
+INVALID
+mailto://example.com:8080/pathname?search#hash	null
+mailto:///test	null
+mailto://test/b	null
+INVALID
+INVALID
+INVALID
+intent://example.com:8080/pathname?search#hash	null
+intent:///test	null
+intent://test/b	null
+INVALID
+INVALID
+INVALID
+urn://example.com:8080/pathname?search#hash	null
+urn:///test	null
+urn://test/b	null
+INVALID
+INVALID
+INVALID
+turn://example.com:8080/pathname?search#hash	null
+turn:///test	null
+turn://test/b	null
+INVALID
+INVALID
+INVALID
+stun://example.com:8080/pathname?search#hash	null
+stun:///test	null
+stun://test/b	null
+INVALID
+INVALID
+INVALID
+w://x:0	null
+west://x:0	null
+android://x:0/a	null
+drivefs://x:0/a	null
+chromeos-steam://x:0/a	null
+steam://x:0/a	null
+materialized-view://x:0/a	null
+android-app://x:0	null
+chrome-distiller://x:0	null
+chrome-extension://x:0	null
+chrome-native://x:0	null
+chrome-resource://x:0	null
+chrome-search://x:0	null
+fuchsia-dir://x:0	null
+isolated-app://x:0	null
+http://test/	http://test
+http://test/	http://test
+http://example.org/path	http://example.org
+http://example.org/path	http://example.org
+http://example.org/	http://example.org
+http://example.org/	http://example.org
+http://example.org/path	http://example.org
+http://example.org/path	http://example.org
+file:///	null
+file://////	null
+file://a/	null
+non-special:\\opaque	null
+non-special:\\opaque/path	null
+non-special:\\opaque\path	null
+non-special:\/opaque	null
+non-special:/\path	null
+INVALID
+non-special://host/a\b	null
+foo://foo/\a	null
+foo://foo/\/a	null
+foo://foo/\\a	null
+data:text/plain,test#%3Cfoo%3E%20%3Cbar%3E	null
+about:blank#%3Cfoo%3E%20%3Cbar%3E	null
+data:text/plain,test#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9	null
+about:blank#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9	null

@@ -1,0 +1,28 @@
+BASE_INVALID
+about:blank#x	null
+https://lemire.me/%C3%A9cole	https://lemire.me
+http://./	http://.
+INVALID
+http://xn--yaz-isa4g.com/	http://xn--yaz-isa4g.com
+fs:/hello.eth	null
+http://'/	http://'
+http://www.example.org/foo	http://www.example.org
+INVALID
+INVALID
+mailto:a@b.com	null
+scheme:example.com	null
+scheme:example.com/path	null
+INVALID
+INVALID
+INVALID
+scheme://username%40%40%40@example.com	null
+file:///path/to/file.txt	null
+INVALID
+data:space   %20?test#test	null
+INVALID
+https://example.com/%22quoted%22	https://example.com
+a:b#	null
+INVALID
+INVALID
+INVALID
+a:b#f	null

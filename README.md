@@ -80,12 +80,16 @@ Single buffer in, single buffer out; no allocator in the hot path.
 
 - `parseFastAbsolute`: a tight single-pass fast path for the dominant shape
   (`http(s)://` + plain lowercase host + plain path [+ plain query]
-  [+ plain fragment]) — one 8-byte integer scheme compare, then byte
-  classification entirely by NEON `tbl` (see below), then one contiguous
-  bulk copy from input to href and arithmetically computed offsets. Any
-  deviation falls back to the general parser, which re-does the work; every
-  accept condition mirrors the general path's own bulk branch, so outputs
-  are identical by construction. ~99.7% of the benchmark dataset takes it.
+  [+ plain fragment]). Any deviation falls back to the general parser, which
+  re-does the work; every accept condition mirrors the general path's own
+  bulk branch, so outputs are identical by construction. ~99.7% of the
+  benchmark dataset takes it. On success the href is the input *verbatim*
+  (the fast path only accepts already-normalized URLs), so validation and
+  the href copy are **fused into one vector loop** — each 16-byte block is
+  classified *and* stored in the same pass, and the final partial block is
+  handled by an overlapping vector block (idempotent by construction) rather
+  than a per-byte scalar tail. Scan results are packed into a single u64
+  register; offsets are computed arithmetically.
 - Exact byte classification via the simdjson nibble trick:
   `class(c) = lo_tab[c & 15] & hi_tab[c >> 4]`, two `tbl` instructions per
   16 bytes. The hi/lo tables are **built at comptime from the same `cls`/

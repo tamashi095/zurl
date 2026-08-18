@@ -1133,12 +1133,10 @@ fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
     const sc_https = comptime std.mem.readInt(u64, "https://", .little);
     const sc_http = comptime std.mem.readInt(u64, "http://\x00", .little);
     const sc_http_mask: u64 = 0x00FFFFFFFFFFFFFF;
-    var scheme_len: usize = 8;
-    if (w8 == sc_https) {
-        @branchHint(.likely);
-    } else if ((w8 & sc_http_mask) == sc_http) {
-        scheme_len = 7;
-    } else return null;
+    const is_https = w8 == sc_https;
+    const is_http = (w8 & sc_http_mask) == sc_http;
+    if (!is_https and !is_http) return null;
+    const scheme_len: usize = if (is_https) 8 else 7;
     // speculative href copy, fused into the validation scan below
     out[0..8].* = in[0..8].*; // "http://" + throwaway 8th byte for http
     const rest = in[scheme_len..];
@@ -1184,13 +1182,12 @@ fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
         // really is (or is invalid), the general path must handle it.
         if (isIpv4(rest[0..k])) return null;
     }
-    var href_len = in.len;
-    if (k == rest.len) {
-        // empty path: href gains a "/"
-        out[in.len] = '/';
-        href_len = in.len + 1;
-    }
-    var off = Offsets{
+    // empty path (k == rest.len): href gains a "/"; the store is harmless
+    // when unused (out has slack), so this stays branch-free
+    out[in.len] = '/';
+    const empty_path = k == rest.len;
+    const href_len = in.len + @intFromBool(empty_path);
+    const off = Offsets{
         .scheme_end = @intCast(scheme_len - 2),
         .auth_start = @intCast(scheme_len),
         .special = true,
@@ -1199,10 +1196,10 @@ fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
         .host_start = @intCast(scheme_len),
         .host_end = @intCast(scheme_len + k),
         .path_start = @intCast(scheme_len + k),
-        .path_end = @intCast(scheme_len + if (k == rest.len) k + 1 else path_end_rel),
+        .path_end = @intCast(scheme_len + if (empty_path) k + 1 else path_end_rel),
+        .qmark = if (query_len != null) @intCast(scheme_len + path_end_rel) else 0,
+        .hashmark = if (frag_at) |f| @intCast(scheme_len + f) else 0,
     };
-    if (query_len != null) off.qmark = @intCast(scheme_len + path_end_rel);
-    if (frag_at) |f| off.hashmark = @intCast(scheme_len + f);
     res.* = .{ .href = out[0..href_len], .off = off };
     return true;
 }
@@ -1711,30 +1708,29 @@ fn scanRestFastCopy(rest: []const u8, dst: [*]u8) RestScan {
                 const phi: V16u8 = PT.hi;
                 const nib: V16u8 = @splat(0x0F);
                 const sh: @Vector(16, u3) = @splat(4);
-                while (true) {
-                    const c0: V16u8 = rest[i..][0..16].*;
-                    dst[i..][0..16].* = c0; // fused speculative href copy
-                    const ln = c0 & nib;
-                    const hn = c0 >> sh;
-                    var pm = maskFromNibs(plo, phi, ln, hn);
-                    if (k == null) {
-                        const hm = maskFromNibs(hlo, hhi, ln, hn);
-                        if (hm != 0) {
-                            const f = i + (@ctz(hm) >> 2);
-                            if (f == 0 or rest[f] != '/') return RS_SLOW;
-                            k = f;
-                            // lanes <= the '/' are host bytes (their '.'/'%'
-                            // bits in pm must be ignored)
-                            const skip: usize = f - i;
-                            pm &= if (skip >= 15) 0 else ~((@as(u64, 1) << @intCast(4 * skip + 4)) - 1);
-                        }
-                    }
-                    if (k != null) {
-                        switch (tailWalk(rest, i, pm)) {
+                var peeled = false;
+                if (n >= 32) {
+                    // ---- block 0: host + path fused. The authority almost
+                    // always ends here; peeling lets the steady loop below
+                    // run the path classifier only.
+                    const c0: V16u8 = rest[0..16].*;
+                    dst[0..16].* = c0; // fused speculative href copy
+                    const ln0 = c0 & nib;
+                    const hn0 = c0 >> sh;
+                    const hm0 = maskFromNibs(hlo, hhi, ln0, hn0);
+                    var pm0 = maskFromNibs(plo, phi, ln0, hn0);
+                    if (hm0 != 0) {
+                        @branchHint(.likely);
+                        const f = @ctz(hm0) >> 2;
+                        if (f == 0 or rest[f] != '/') return RS_SLOW;
+                        k = f;
+                        // lanes <= the '/' are host bytes (ignore their bits)
+                        pm0 &= if (f >= 15) 0 else ~((@as(u64, 1) << @intCast(4 * f + 4)) - 1);
+                        switch (tailWalk(rest, 0, pm0)) {
                             .done => |d| switch (d) {
                                 .frag => |fp| {
                                     frag_pos = fp;
-                                    copy_from = i + 16;
+                                    copy_from = 16;
                                     break :path;
                                 },
                                 .slow => return RS_SLOW,
@@ -1742,21 +1738,96 @@ fn scanRestFastCopy(rest: []const u8, dst: [*]u8) RestScan {
                             },
                             .query => |q| {
                                 qpos = q;
-                                copy_from = i + 16;
+                                copy_from = 16;
                                 break :path;
                             },
                             .none => {},
                         }
+                        peeled = true;
+                        i = 16;
+                    } else {
+                        // host longer than 15 bytes: the generic both-mask
+                        // loop below finds the terminator instead.
+                        i = 16;
                     }
-                    // advance; the last block overlaps previously covered
-                    // lanes, which is idempotent: they were verified plain
-                    // or re-decide benign
+                }
+                if (!peeled) {
+                    // ---- fused host+path loop
+                    while (true) {
+                        const c0: V16u8 = rest[i..][0..16].*;
+                        dst[i..][0..16].* = c0; // fused speculative href copy
+                        const ln = c0 & nib;
+                        const hn = c0 >> sh;
+                        var pm = maskFromNibs(plo, phi, ln, hn);
+                        if (k == null) {
+                            const hm = maskFromNibs(hlo, hhi, ln, hn);
+                            if (hm != 0) {
+                                const f = i + (@ctz(hm) >> 2);
+                                if (f == 0 or rest[f] != '/') return RS_SLOW;
+                                k = f;
+                                // lanes <= the '/' are host bytes (their
+                                // '.'/'%' bits in pm must be ignored)
+                                const skip: usize = f - i;
+                                pm &= if (skip >= 15) 0 else ~((@as(u64, 1) << @intCast(4 * skip + 4)) - 1);
+                            }
+                        }
+                        if (k != null) {
+                            switch (tailWalk(rest, i, pm)) {
+                                .done => |d| switch (d) {
+                                    .frag => |fp| {
+                                        frag_pos = fp;
+                                        copy_from = i + 16;
+                                        break :path;
+                                    },
+                                    .slow => return RS_SLOW,
+                                    else => unreachable,
+                                },
+                                .query => |q| {
+                                    qpos = q;
+                                    copy_from = i + 16;
+                                    break :path;
+                                },
+                                .none => {},
+                            }
+                        }
+                        // advance; the last block overlaps previously covered
+                        // lanes, which is idempotent: they were verified
+                        // plain or re-decide benign
+                        if (i + 16 < n) {
+                            i += 16;
+                            if (i + 16 > n) i = n - 16;
+                        } else break;
+                    }
+                    if (k == null) k = n; // host spans the whole rest
+                    break :path;
+                }
+                // ---- steady path loop (path classifier only)
+                while (true) {
+                    const c1: V16u8 = rest[i..][0..16].*;
+                    dst[i..][0..16].* = c1;
+                    const pm = maskFromNibs(plo, phi, c1 & nib, c1 >> sh);
+                    switch (tailWalk(rest, i, pm)) {
+                        .done => |d| switch (d) {
+                            .frag => |fp| {
+                                frag_pos = fp;
+                                copy_from = i + 16;
+                                break :path;
+                            },
+                            .slow => return RS_SLOW,
+                            else => unreachable,
+                        },
+                        .query => |q| {
+                            qpos = q;
+                            copy_from = i + 16;
+                            break :path;
+                        },
+                        .none => {},
+                    }
                     if (i + 16 < n) {
                         i += 16;
                         if (i + 16 > n) i = n - 16;
                     } else break;
                 }
-                if (k == null) k = n; // host spans the whole rest
                 break :path;
             }
         }

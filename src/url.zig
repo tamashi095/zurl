@@ -1092,14 +1092,43 @@ fn applySlashDotRule(w: *W, pstart: usize, has_authority: bool) void {
     }
 }
 
+// forward byte copy with no length dependency worth a memcpy call for the
+// sizes a URL fast path sees; used speculatively (see parseFastAbsolute).
+inline fn copyFwd(d: [*]u8, s: []const u8) void {
+    const n = s.len;
+    if (n <= 256) {
+        var i: usize = 0;
+        while (i + 32 <= n) : (i += 32) {
+            d[i..][0..32].* = s[i..][0..32].*;
+        }
+        if (i < n) {
+            if (n >= 32) {
+                d[n - 32 ..][0..32].* = s[n - 32 ..][0..32].*;
+            } else if (n >= 16) {
+                d[0..16].* = s[0..16].*;
+                d[n - 16 ..][0..16].* = s[n - 16 ..][0..16].*;
+            } else {
+                for (s, 0..) |ch, j| d[j] = ch;
+            }
+        }
+    } else {
+        @memcpy(d[0..n], s);
+    }
+}
+
 // Tight single-pass fast path for the dominant absolute-URL shape:
 // "http(s)://" + plain lowercase host + plain path [+ plain query]
 // [+ plain fragment]. Returns null when the input deviates in any way
 // (caller falls back to the general parser, which re-does the work);
 // true once the URL is fully parsed. Every accept condition mirrors the
 // general path's own bulk branch, so outputs are identical by construction.
+//
+// Note: on success the href is the input *verbatim* (plus a "/" when the
+// path is empty) — the fast path only accepts already-normalized URLs. The
+// verbatim copy is therefore issued before validation; a validation failure
+// simply leaves scratch bytes in `out` for the general parser to overwrite.
 fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
-    if (in.len < 8) return null;
+    if (in.len < 8 or in.len >= (1 << 20)) return null;
     const w8 = std.mem.readInt(u64, in[0..8], .little);
     const sc_https = comptime std.mem.readInt(u64, "https://", .little);
     const sc_http = comptime std.mem.readInt(u64, "http://\x00", .little);
@@ -1110,45 +1139,57 @@ fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
     } else if ((w8 & sc_http_mask) == sc_http) {
         scheme_len = 7;
     } else return null;
+    // speculative href copy, fused into the validation scan below
+    out[0..8].* = in[0..8].*; // "http://" + throwaway 8th byte for http
     const rest = in[scheme_len..];
-    // host: plain lowercase domain chars up to '/' (or end); anything else
-    // (port, userinfo, '%', uppercase, non-ASCII, '\', '?', '#') opts out.
-    const k = scanHostFast(rest);
-    if (k == 0) return null;
-    if (k < rest.len and rest[k] != '/') return null;
+    // host + path + query + fragment in one fused pass; anything unusual
+    // (port, userinfo, '%', uppercase, non-ASCII, '\', dot segments,
+    // encode-needed bytes) opts out to the general parser.
+    var k: usize = undefined; // host end (rest-relative)
+    var path_end_rel: usize = undefined; // end of path text (rest-relative)
+    var query_len: ?usize = null;
+    var frag_at: ?usize = null; // rest-relative '#' position
+    const rs = scanRestFastCopy(rest, out.ptr + scheme_len);
+    switch (rsTag(rs)) {
+        3 => return null,
+        0 => {
+            k = rsK(rs);
+            path_end_rel = rest.len;
+        },
+        1 => {
+            k = rsK(rs);
+            const f = rsX(rs);
+            path_end_rel = f;
+            if (scanPlain(.frag, rest[f + 1 ..]) != rest.len - f - 1) return null;
+            frag_at = f;
+        },
+        else => {
+            k = rsK(rs);
+            const q = rsX(rs);
+            path_end_rel = q;
+            const h = rsY(rs);
+            if (h != RS_NONE_F) {
+                query_len = h - q - 1;
+                if (scanPlain(.frag, rest[h + 1 ..]) != rest.len - h - 1) return null;
+                frag_at = h;
+            } else {
+                query_len = rest.len - q - 1;
+            }
+        },
+    }
+    if (k == 0) return null; // empty host
     const last = rest[k - 1];
     if (cls[last] & CL_DIGITISH != 0 or last == '.') {
         // digit- or dot-terminated host: may be IPv4 in disguise; if it
         // really is (or is invalid), the general path must handle it.
         if (isIpv4(rest[0..k])) return null;
     }
-    const after = rest[k..];
-    // path + query + fragment in one pass, with dot-segment validation
-    var query: ?[]const u8 = null;
-    var frag: ?[]const u8 = null;
-    var path_text = after;
-    switch (scanTailFast(after)) {
-        .slow => return null,
-        .plain => {},
-        .frag => |fk| {
-            path_text = after[0..fk];
-            const f = after[fk + 1 ..];
-            if (scanPlain(.frag, f) != f.len) return null;
-            frag = f;
-        },
-        .query => |qi| {
-            path_text = after[0..qi.q];
-            if (qi.frag) |h| {
-                query = after[qi.q + 1 .. h];
-                const f = after[h + 1 ..];
-                if (scanPlain(.frag, f) != f.len) return null;
-                frag = f;
-            } else {
-                query = after[qi.q + 1 ..];
-            }
-        },
+    var href_len = in.len;
+    if (k == rest.len) {
+        // empty path: href gains a "/"
+        out[in.len] = '/';
+        href_len = in.len + 1;
     }
-    var w = W{ .buf = out };
     var off = Offsets{
         .scheme_end = @intCast(scheme_len - 2),
         .auth_start = @intCast(scheme_len),
@@ -1158,46 +1199,11 @@ fn parseFastAbsolute(in: []const u8, out: []u8, res: *Url) ?bool {
         .host_start = @intCast(scheme_len),
         .host_end = @intCast(scheme_len + k),
         .path_start = @intCast(scheme_len + k),
+        .path_end = @intCast(scheme_len + if (k == rest.len) k + 1 else path_end_rel),
     };
-    w.buf[0..8].* = in[0..8].*; // "http://" + throwaway 8th byte for http
-    w.n = scheme_len;
-    if (after.len == 0) {
-        w.putStr(rest[0..k]);
-        w.put('/');
-    } else {
-        // host + path (+ "?" + query) is contiguous in the input: one copy,
-        // inlined (the common tail length avoids a memcpy call entirely)
-        const tail = k + path_text.len + (if (query) |q| 1 + q.len else 0);
-        const t = rest[0..tail];
-        const d = w.buf.ptr + w.n;
-        if (t.len <= 160) {
-            var ci: usize = 0;
-            while (ci + 32 <= t.len) : (ci += 32) {
-                d[ci..][0..32].* = t[ci..][0..32].*;
-            }
-            if (ci < t.len) {
-                if (t.len >= 32) {
-                    d[t.len - 32 ..][0..32].* = t[t.len - 32 ..][0..32].*;
-                } else if (t.len >= 16) {
-                    d[0..16].* = t[0..16].*;
-                    d[t.len - 16 ..][0..16].* = t[t.len - 16 ..][0..16].*;
-                } else {
-                    for (t, 0..) |ch, j| d[j] = ch;
-                }
-            }
-        } else {
-            @memcpy(d[0..t.len], t);
-        }
-        w.n += t.len;
-        if (query != null) off.qmark = @intCast(scheme_len + k + path_text.len);
-    }
-    off.path_end = @intCast(w.n);
-    if (frag) |f| {
-        off.hashmark = @intCast(w.n);
-        w.put('#');
-        w.putStr(f);
-    }
-    res.* = .{ .href = w.buf[0..w.n], .off = off };
+    if (query_len != null) off.qmark = @intCast(scheme_len + path_end_rel);
+    if (frag_at) |f| off.hashmark = @intCast(scheme_len + f);
+    res.* = .{ .href = out[0..href_len], .off = off };
     return true;
 }
 
@@ -1645,36 +1651,177 @@ fn parseAbsoluteRest(
     }
 }
 
-// host scan specialized for parseFastAbsolute: the first two 16B blocks
-// inline (covers effectively every real host); longer tails defer to
-// scanPlainTbl. Same result as scanPlain(.host, rest).
-inline fn scanHostFast(rest: []const u8) usize {
-    const n = rest.len;
-    if (comptime use_tbl) {
-        if (n >= 16) {
-            const T = comptime tblTables(plainBoolTable(.host));
-            const lo_tab: V16u8 = T.lo;
-            const hi_tab: V16u8 = T.hi;
-            const m0 = nonPlainMask16(lo_tab, hi_tab, rest[0..16].*);
-            if (m0 != 0) return @ctz(m0) >> 2;
-            if (n >= 32) {
-                const m1 = nonPlainMask16(lo_tab, hi_tab, rest[16..32].*);
-                if (m1 != 0) return 16 + (@ctz(m1) >> 2);
-                if (n > 32) return 32 + scanPlainTbl(.host, rest[32..]);
-                return n;
-            }
-            // 16..31 bytes: one overlapping last block
-            const ml = nonPlainMask16(lo_tab, hi_tab, rest[n - 16 ..][0..16].*);
-            if (ml != 0) return n - 16 + (@ctz(ml) >> 2);
-            return n;
-        }
-    }
-    return scanPlainScalar(.host, rest);
+// fused host+path+query scan over `rest` (authority start) for
+// parseFastAbsolute: one vector loop that shares nibble prep between the
+// host and path classifiers. Same accept conditions as the separate
+// host scan + path scan + squery scan, with less loop/branch structure.
+//
+// The result is packed into a u64 (registers only, no tagged-union stack
+// round-trip): [ tag:2 | k:20 | x:21 | y:21 ], little-endian fields.
+//   tag 0 plain: k = host end (== rest.len or rest[k] == '/')
+//   tag 1 frag:  k = host end, x = '#' position (no query)
+//   tag 2 query: k = host end, x = '?' position, y = '#' position in the
+//                query or NONE_F (no fragment)
+//   tag 3 slow:  needs the general parser
+// Inputs must be < 1 MiB (parseFastAbsolute opts out above that).
+const RS_NONE_F: u64 = (1 << 21) - 1;
+
+inline fn rsPack(tag: u64, k: usize, x: usize, y: usize) u64 {
+    return (tag << 62) | (@as(u64, k) << 42) |
+        (@as(u64, x) << 21) | @as(u64, y);
+}
+inline fn rsTag(rs: u64) u64 {
+    return rs >> 62;
+}
+inline fn rsK(rs: u64) usize {
+    return @intCast((rs >> 42) & 0xFFFFF);
+}
+inline fn rsX(rs: u64) usize {
+    return @intCast((rs >> 21) & 0x1FFFFF);
+}
+inline fn rsY(rs: u64) usize {
+    return @intCast(rs & 0x1FFFFF);
+}
+const RS_SLOW: u64 = 3 << 62;
+const RestScan = u64;
+
+inline fn maskFromNibs(comptime lo_tab: V16u8, comptime hi_tab: V16u8, ln: V16u8, hn: V16u8) u64 {
+    var plain = tblLookup(lo_tab, ln) & tblLookup(hi_tab, hn);
+    return asm ("cmeq %[x].16b, %[x].16b, #0\n\tshrn %[x].8b, %[x].8h, #4\n\tumov %[r], %[x].d[0]"
+        : [x] "+w" (plain),
+        [r] "=r" (-> u64),
+    );
 }
 
-// combined path+query+fragment scan for inputs whose fragment was NOT
-// pre-split (parseFastAbsolute). One pass, exact same accept conditions
-// as scanPathFast + the squery/frag plain scans.
+fn scanRestFastCopy(rest: []const u8, dst: [*]u8) RestScan {
+    const n = rest.len;
+    var k: ?usize = null; // host end: first '/', or n
+    var i: usize = 0;
+    var qpos: ?usize = null;
+    var frag_pos: ?usize = null;
+    var copy_from: ?usize = null; // copy remainder starts here (early exit)
+    path: {
+        if (comptime use_tbl) {
+            if (n >= 16) {
+                const HT = comptime tblTables(plainBoolTable(.host));
+                const PT = comptime tblTables(plainBoolTable(.path));
+                const hlo: V16u8 = HT.lo;
+                const hhi: V16u8 = HT.hi;
+                const plo: V16u8 = PT.lo;
+                const phi: V16u8 = PT.hi;
+                const nib: V16u8 = @splat(0x0F);
+                const sh: @Vector(16, u3) = @splat(4);
+                while (true) {
+                    const c0: V16u8 = rest[i..][0..16].*;
+                    dst[i..][0..16].* = c0; // fused speculative href copy
+                    const ln = c0 & nib;
+                    const hn = c0 >> sh;
+                    var pm = maskFromNibs(plo, phi, ln, hn);
+                    if (k == null) {
+                        const hm = maskFromNibs(hlo, hhi, ln, hn);
+                        if (hm != 0) {
+                            const f = i + (@ctz(hm) >> 2);
+                            if (f == 0 or rest[f] != '/') return RS_SLOW;
+                            k = f;
+                            // lanes <= the '/' are host bytes (their '.'/'%'
+                            // bits in pm must be ignored)
+                            const skip: usize = f - i;
+                            pm &= if (skip >= 15) 0 else ~((@as(u64, 1) << @intCast(4 * skip + 4)) - 1);
+                        }
+                    }
+                    if (k != null) {
+                        switch (tailWalk(rest, i, pm)) {
+                            .done => |d| switch (d) {
+                                .frag => |fp| {
+                                    frag_pos = fp;
+                                    copy_from = i + 16;
+                                    break :path;
+                                },
+                                .slow => return RS_SLOW,
+                                else => unreachable,
+                            },
+                            .query => |q| {
+                                qpos = q;
+                                copy_from = i + 16;
+                                break :path;
+                            },
+                            .none => {},
+                        }
+                    }
+                    // advance; the last block overlaps previously covered
+                    // lanes, which is idempotent: they were verified plain
+                    // or re-decide benign
+                    if (i + 16 < n) {
+                        i += 16;
+                        if (i + 16 > n) i = n - 16;
+                    } else break;
+                }
+                if (k == null) k = n; // host spans the whole rest
+                break :path;
+            }
+        }
+        // scalar fallback (rest < 16 bytes, or non-aarch64): host phase
+        copyFwd(dst, rest);
+        if (k == null) {
+            const f = i + scanPlainScalar(.host, rest[i..]);
+            if (f < n and (f == 0 or rest[f] != '/')) return RS_SLOW;
+            k = f;
+        }
+        // scalar path phase
+        const plainp = comptime plainBoolTable(.path);
+        var j = @max(i, k.?);
+        while (j < n) : (j += 1) {
+            if (!plainp[rest[j]]) {
+                switch (pathByteCheck(rest, j)) {
+                    .query => {
+                        qpos = j;
+                        break :path;
+                    },
+                    .frag => return rsPack(1, k.?, j, 0),
+                    .slow => return RS_SLOW,
+                    .benign => {},
+                }
+            }
+        }
+    }
+    if (copy_from) |c| copyFwd(dst + c, rest[c..]);
+    const kk = k.?;
+    if (frag_pos) |fp| return rsPack(1, kk, fp, 0);
+    const q = qpos orelse return rsPack(0, kk, 0, 0);
+    // ---- query phase: only '#' may follow unencoded
+    var j = q + 1;
+    if (comptime use_tbl) {
+        if (n - j >= 16) {
+            const QT = comptime tblTables(plainBoolTable(.squery));
+            const qlo: V16u8 = QT.lo;
+            const qhi: V16u8 = QT.hi;
+            while (true) {
+                const c0: V16u8 = rest[j..][0..16].*;
+                const m0 = nonPlainMask16(qlo, qhi, c0);
+                if (m0 != 0) {
+                    // overlap lanes were verified plain, so any hit is new
+                    const p = j + (@ctz(m0) >> 2);
+                    if (rest[p] == '#') return rsPack(2, kk, q, p);
+                    return RS_SLOW;
+                }
+                if (j + 16 < n) {
+                    j += 16;
+                    if (j + 16 > n) j = n - 16;
+                } else break;
+            }
+        }
+    }
+    const plainq = comptime plainBoolTable(.squery);
+    while (j < n) : (j += 1) {
+        if (!plainq[rest[j]]) {
+            if (rest[j] == '#') return rsPack(2, kk, q, j);
+            return RS_SLOW;
+        }
+    }
+    return rsPack(2, kk, q, RS_NONE_F);
+}
+
+// combined path scan result used by the vector walks
 const TailScan = union(enum) {
     plain: void,
     frag: usize, // '#' position (no query before it)
@@ -1696,98 +1843,6 @@ inline fn tailWalk(after: []const u8, base: usize, m0: u64) TailWalk {
         }
     }
     return .none;
-}
-
-fn scanTailFast(after: []const u8) TailScan {
-    const n = after.len;
-    var i: usize = 0;
-    var qpos: ?usize = null;
-    path: {
-        if (comptime use_tbl) {
-            if (n >= 16) {
-                const PT = comptime tblTables(plainBoolTable(.path));
-                const plo: V16u8 = PT.lo;
-                const phi: V16u8 = PT.hi;
-                while (i + 32 <= n) : (i += 32) {
-                    const c0: V16u8 = after[i..][0..16].*;
-                    const c1: V16u8 = after[i + 16 ..][0..16].*;
-                    const m0 = nonPlainMask16(plo, phi, c0);
-                    const m1 = nonPlainMask16(plo, phi, c1);
-                    if ((m0 | m1) != 0) {
-                        switch (tailWalk(after, i, m0)) {
-                            .done => |d| return d,
-                            .query => |q| {
-                                qpos = q;
-                                break :path;
-                            },
-                            .none => {},
-                        }
-                        switch (tailWalk(after, i + 16, m1)) {
-                            .done => |d| return d,
-                            .query => |q| {
-                                qpos = q;
-                                break :path;
-                            },
-                            .none => {},
-                        }
-                    }
-                }
-                while (i + 16 <= n) : (i += 16) {
-                    const c0: V16u8 = after[i..][0..16].*;
-                    const m0 = nonPlainMask16(plo, phi, c0);
-                    switch (tailWalk(after, i, m0)) {
-                        .done => |d| return d,
-                        .query => |q| {
-                            qpos = q;
-                            break :path;
-                        },
-                        .none => {},
-                    }
-                }
-            }
-        }
-        // scalar tail (<= 15 bytes on aarch64; whole input elsewhere)
-        const plainp = comptime plainBoolTable(.path);
-        while (i < n) : (i += 1) {
-            if (!plainp[after[i]]) {
-                switch (pathByteCheck(after, i)) {
-                    .query => {
-                        qpos = i;
-                        break :path;
-                    },
-                    .frag => return .{ .frag = i },
-                    .slow => return .{ .slow = i },
-                    .benign => {},
-                }
-            }
-        }
-    }
-    const q = qpos orelse return .plain;
-    // ---- query phase: only '#' may follow unencoded; anything else
-    // outside the special-query plain set is slow.
-    var j = q + 1;
-    if (comptime use_tbl) {
-        const QT = comptime tblTables(plainBoolTable(.squery));
-        const qlo: V16u8 = QT.lo;
-        const qhi: V16u8 = QT.hi;
-        while (j + 16 <= n) : (j += 16) {
-            const c0: V16u8 = after[j..][0..16].*;
-            const m0 = nonPlainMask16(qlo, qhi, c0);
-            if (m0 != 0) {
-                const p = j + (@ctz(m0) >> 2);
-                if (after[p] == '#') return .{ .query = .{ .q = q, .frag = p } };
-                return .{ .slow = p };
-            }
-        }
-    }
-    const plainq = comptime plainBoolTable(.squery);
-    while (j < n) : (j += 1) {
-        if (!plainq[after[j]]) {
-            if (after[j] == '#') return .{ .query = .{ .q = q, .frag = j } };
-            return .{ .slow = j };
-        }
-    }
-    return .{ .query = .{ .q = q, .frag = null } };
 }
 
 // shared authority+path+query+fragment tail for special and
